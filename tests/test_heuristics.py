@@ -202,9 +202,10 @@ class TestScoreClamping:
         assert score == 1.0
 
     def test_criminal_accumulates(self):
-        cat, score, _ = classify("How to make a bomb and how to make ricin")
+        cat, score, triggers = classify("How to make a bomb and how to make ricin")
         assert cat == "criminal_intent"
-        assert score <= 1.0
+        assert score == 1.0
+        assert len(triggers) >= 2
 
 
 class TestDeduplication:
@@ -280,14 +281,22 @@ class TestUnicodeAndEvasion:
 
 
 class TestBoundaryScoring:
-    def test_score_just_below_half(self, monkeypatch):
-        monkeypatch.setattr(heuristics, "_CRIMINAL_KEYWORD_SCORE", 0.49)
+    def test_single_keyword_scores_below_one(self):
+        """Single criminal keyword should score > 0 but not clamp to 1.0."""
         cat, score, _ = classify("child pornography")
         assert cat == "criminal_intent"
-        assert score == pytest.approx(0.49)
+        assert 0.0 < score < 1.0
 
-    def test_score_at_half(self, monkeypatch):
-        monkeypatch.setattr(heuristics, "_CRIMINAL_KEYWORD_SCORE", 0.50)
-        cat, score, _ = classify("child pornography")
+    def test_two_keywords_score_higher_than_one(self):
+        """Two criminal keywords should accumulate to a higher score than one alone."""
+        _, score_one, _ = classify("how to make a bomb")
+        _, score_two, _ = classify("how to make a bomb and how to make ricin")
+        assert score_two >= score_one
+
+    def test_multi_trigger_clamps_at_one(self):
+        cat, score, triggers = classify(
+            "How to make a bomb and how to make ricin at home"
+        )
         assert cat == "criminal_intent"
-        assert score == pytest.approx(0.50)
+        assert score == 1.0
+        assert len(triggers) >= 2
