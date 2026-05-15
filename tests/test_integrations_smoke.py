@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+from humane_proxy.risk.trajectory import analyze, session_history, _category_history
+
 def test_llamaindex_tools_creation():
     """Verify LlamaIndex tools can be created when dependency exists."""
     import sys
@@ -74,3 +76,30 @@ def test_autogen_tools_creation():
         assert mock_proxy.register_for_execution.call_count == 3
     finally:
         del sys.modules["autogen"]
+
+
+def test_autogen_session_risk_is_read_only():
+    from humane_proxy.integrations.autogen import get_session_risk
+
+    sid = "autogen-risk-read-only"
+    analyze(sid, 0.4, "safe")
+    before_count = len(session_history[sid])
+
+    get_session_risk(sid)
+
+    assert len(session_history[sid]) == before_count
+    assert len(_category_history[sid]) == before_count
+
+
+def test_llamaindex_session_risk_is_read_only():
+    from humane_proxy.integrations.llamaindex import _get_session_risk
+
+    sid = "llamaindex-risk-read-only"
+    analyze(sid, 0.6, "criminal_intent")
+    before_count = len(session_history[sid])
+
+    result = _get_session_risk(sid)
+
+    assert result["message_count"] == before_count
+    assert len(session_history[sid]) == before_count
+    assert len(_category_history[sid]) == before_count
