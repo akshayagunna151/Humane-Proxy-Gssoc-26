@@ -17,12 +17,25 @@ HumaneProxy sits between your users and any LLM. When someone expresses self-har
 
 ## What it does
 
-```
-User message → HumaneProxy → (safe?) → Upstream LLM → Response
-                    ↓
-              (self_harm or criminal_intent?)
-                    ↓
-              Empathetic care response  +  Operator alert
+flowchart TD
+    A([👤 User Message]) --> B([🛡️ HumaneProxy])
+
+    B -->|✅ Safe| C([🤖 Upstream LLM])
+    C --> D([💬 Response to User])
+
+    B -->|⚠️ self_harm / criminal_intent| E([❤️ Empathetic Care Response])
+    E --> F([📡 Operator Alert])
+
+    %% Styles
+    classDef proxy fill:#e6f0ff,stroke:#3366cc,stroke-width:2px,color:#000;
+    classDef safe fill:#e5ffe5,stroke:#22aa22,stroke-width:2px,color:#000;
+    classDef danger fill:#ffe5e5,stroke:#ff3333,stroke-width:2px,color:#000;
+    classDef alert fill:#fff4cc,stroke:#e6b800,stroke-width:2px,color:#000;
+
+    class B proxy;
+    class C,D safe;
+    class E danger;
+    class F alert;
 ```
 
 - 🆘 **Self-harm detected** → Blocked with international crisis resources. Operator notified.
@@ -104,28 +117,47 @@ This exposes 3 tools to your AI agent: `check_message_safety`, `get_session_risk
 
 HumaneProxy classifies every message through up to **3 stages**, each progressively more capable but also more expensive.
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Stage 1 — Heuristics                          < 1ms     │
-│  Keyword corpus + intent regex patterns                  │
-│  Always on. Catches clear cases instantly.               │
-│  Early-exit: definitive self_harm → block immediately.   │
-└──────────────────────────────────────────────────────────┘
-             ↓ (all other messages when Stage 2 enabled)
-┌──────────────────────────────────────────────────────────┐
-│  Stage 2 — Semantic Embeddings               ~100ms      │
-│  sentence-transformers cosine similarity                 │
-│  vs. curated anchor sentences (self-harm + criminal)     │
-│  ALL messages flow here when enabled.                    │
-│  Optional: pip install humane-proxy[ml]                  │
-└──────────────────────────────────────────────────────────┘
-             ↓ (still ambiguous)
-┌──────────────────────────────────────────────────────────┐
-│  Stage 3 — Reasoning LLM                     ~1–3s       │
-│  LlamaGuard (Groq) or OpenAI Moderation API              │
-│  Optional: set OPENAI_API_KEY or GROQ_API_KEY            │
-└──────────────────────────────────────────────────────────┘
-```
+flowchart TD
+    A([👤 User Request])
+
+    A --> B{{🟦 Stage 1 — Heuristics<br/>Keyword corpus + regex<br/>< 1ms}}
+
+    B -->|Definitive harmful intent| X([🛑 Block Request])
+    B -->|Clearly safe| Y([✅ Forward to LLM])
+    B -->|Ambiguous| C{{🟨 Stage 2 — Semantic Embeddings<br/>Cosine similarity<br/>~100ms}}
+
+    C -->|High confidence harmful| X
+    C -->|Clearly safe| Y
+    C -->|Still ambiguous| D{{🟪 Stage 3 — Reasoning LLM<br/>LlamaGuard / OpenAI Moderation<br/>~1–3s}}
+
+    D -->|Unsafe| X
+    D -->|Safe| Y
+
+    %% Async Side Effects
+    X -.-> E[(🗄️ DB Logging)]
+    Y -.-> E
+
+    X -.-> F[[📡 Async Webhook Dispatch]]
+    Y -.-> F
+
+    %% Styles
+    classDef stage1 fill:#e6f0ff,stroke:#3366cc,stroke-width:2px,color:#000;
+    classDef stage2 fill:#fff4cc,stroke:#e6b800,stroke-width:2px,color:#000;
+    classDef stage3 fill:#f0e6ff,stroke:#9933ff,stroke-width:2px,color:#000;
+
+    classDef block fill:#ffe5e5,stroke:#ff3333,stroke-width:3px,color:#900;
+    classDef allow fill:#e5ffe5,stroke:#22aa22,stroke-width:3px,color:#060;
+
+    classDef async fill:#f5f5f5,stroke:#888,stroke-dasharray:5 5;
+
+    class B stage1;
+    class C stage2;
+    class D stage3;
+
+    class X block;
+    class Y allow;
+
+    class E,F async;
 
 ### Configuring the Pipeline
 
