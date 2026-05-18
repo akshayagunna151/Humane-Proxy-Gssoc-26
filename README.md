@@ -21,26 +21,24 @@ HumaneProxy sits between your users and any LLM. When someone expresses self-har
 
 ```mermaid
 flowchart TD
-    A([👤 User Request])
+    A([👤 User Message]) --> B([🛡️ HumaneProxy])
 
-    A --> B{{🟦 Stage 1 — Heuristics<br/>Keyword corpus + regex<br/>< 1ms}}
+    B -->|✅ Safe| C([🤖 Upstream LLM])
+    C --> D([💬 Response to User])
 
-    B -->|Definitive harmful intent| X([🛑 Block Request])
-    B -->|Clearly safe| Y([✅ Forward to LLM])
-    B -->|Ambiguous| C{{🟨 Stage 2 — Semantic Embeddings<br/>Cosine similarity<br/>~100ms}}
+    B -->|⚠️ self_harm / criminal_intent| E([❤️ Empathetic Care Response])
+    E --> F([📡 Operator Alert])
 
-    C -->|High confidence harmful| X
-    C -->|Clearly safe| Y
-    C -->|Still ambiguous| D{{🟪 Stage 3 — Reasoning LLM<br/>LlamaGuard / OpenAI Moderation<br/>~1–3s}}
+    %% Styles
+    classDef proxy fill:#e6f0ff,stroke:#3366cc,stroke-width:2px,color:#000;
+    classDef safe fill:#e5ffe5,stroke:#22aa22,stroke-width:2px,color:#000;
+    classDef danger fill:#ffe5e5,stroke:#ff3333,stroke-width:2px,color:#000;
+    classDef alert fill:#fff4cc,stroke:#e6b800,stroke-width:2px,color:#000;
 
-    D -->|Unsafe| X
-    D -->|Safe| Y
-
-    X -.-> E[(🗄️ DB Logging)]
-    Y -.-> E
-
-    X -.-> F[[📡 Async Webhook Dispatch]]
-    Y -.-> F
+    class B proxy;
+    class C,D safe;
+    class E danger;
+    class F alert;
 ```
 
 - 🆘 **Self-harm detected** → Blocked with international crisis resources. Operator notified.
